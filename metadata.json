@@ -1,0 +1,17 @@
+{
+  "name": "Watt Monitor (Zorin Style)",
+  "description": "Displays battery percentage and power consumption (Watts) in the taskbar. Detailed stats on click.",
+  "gettext-domain": "watt-monitor",
+  "uuid": "watt-monitor@shota.local",
+  "shell-version": [
+    "3.38",
+    "40",
+    "41",
+    "42",
+    "43",
+    "44",
+    "45",
+    "46"
+  ],
+  "url": ""
+}
