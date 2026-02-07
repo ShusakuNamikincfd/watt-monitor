@@ -9,39 +9,25 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 
-// Time in seconds to update
+// 更新間隔（秒）
 const UPDATE_INTERVAL = 3;
-
-/**
- * We need to wrap the class definition in a function to pass `_` correctly
- * or just use `_` inside methods assuming it's available in module scope.
- * The standard ESM way: imported `_` uses the domain from the Extension class context presumably
- * IF we call `initTranslations` or if Extension class does it.
- * 
- * Actually, in GNOME 45+, `Extension.gettext` is a method, but the helper `gettext`
- * exported from `extension.js` relies on `ExtensionUtils` logic under the hood or similar context.
- * 
- * However, we can't easily use `_` in the class definition (field initializers)
- * if it depends on runtime initialization.
- * Safe bet: use `_` inside methods.
- */
 
 const WattMonitorIndicator = GObject.registerClass(
     class WattMonitorIndicator extends PanelMenu.Button {
         _init() {
             super._init(0.0, _('Watt Monitor'));
 
-            // Layout
+            // レイアウト設定
             let box = new St.BoxLayout({ style_class: 'panel-status-menu-box' });
 
-            // Icon
+            // アイコン設定
             this._icon = new St.Icon({
                 icon_name: 'battery-level-80-symbolic',
                 style_class: 'system-status-icon',
             });
             box.add_child(this._icon);
 
-            // Label
+            // ラベル設定
             this._label = new St.Label({
                 text: _('Loading...'),
                 y_align: Clutter.ActorAlign.CENTER,
@@ -51,7 +37,7 @@ const WattMonitorIndicator = GObject.registerClass(
 
             this.add_child(box);
 
-            // Menu items
+            // メニュー項目の追加
             this._statusSection = new PopupMenu.PopupMenuSection();
             this.menu.addMenuItem(this._statusSection);
 
@@ -60,12 +46,12 @@ const WattMonitorIndicator = GObject.registerClass(
                 style_class: 'watt-monitor-details'
             });
 
-            // Wrap the label in a menu item so it looks correct
+            // ラベルをメニュー項目としてラップして表示を整える
             let item = new PopupMenu.PopupBaseMenuItem({ reactive: false });
             item.add_child(this._detailsLabel);
             this.menu.addMenuItem(item);
 
-            // Start timer
+            // タイマー開始
             this._timer = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, UPDATE_INTERVAL, () => {
                 this._update();
                 return GLib.SOURCE_CONTINUE;
@@ -79,7 +65,7 @@ const WattMonitorIndicator = GObject.registerClass(
             this._label.set_text(status.panelText);
             this._detailsLabel.set_text(status.detailsText);
 
-            // Update icon based on charging status
+            // 充電状態に基づいてアイコンを更新
             if (status.isCharging) {
                 this._icon.icon_name = 'battery-charging-80-symbolic';
             } else {
@@ -89,7 +75,7 @@ const WattMonitorIndicator = GObject.registerClass(
 
         _getBatteryStatus() {
             try {
-                // Helper to read file safely
+                // ファイルを安全に読み込むヘルパー関数
                 const readFile = (path) => {
                     try {
                         let f = Gio.File.new_for_path(path);
@@ -101,7 +87,7 @@ const WattMonitorIndicator = GObject.registerClass(
                     }
                 };
 
-                // Find BAT0 or BAT1
+                // BAT0 または BAT1 を探す
                 let batPath = '/sys/class/power_supply/BAT0';
                 if (!GLib.file_test(batPath, GLib.FileTest.EXISTS)) {
                     batPath = '/sys/class/power_supply/BAT1';
@@ -116,27 +102,31 @@ const WattMonitorIndicator = GObject.registerClass(
 
                 let statusRaw = readFile(`${batPath}/status`); // Charging, Discharging, Full
 
-                // Translate status
+                // ステータスの翻訳
                 let statusDisplay = statusRaw;
                 if (statusRaw === "Charging") statusDisplay = _("Charging");
                 else if (statusRaw === "Discharging") statusDisplay = _("Discharging");
                 else if (statusRaw === "Full") statusDisplay = _("Full");
                 else if (statusRaw === "Not charging") statusDisplay = _("Not charging");
 
+                // 容量の取得
                 let capacity = parseInt(readFile(`${batPath}/capacity`) || "0");
 
-                // Getting Power (Watts)
+                // 電力（ワット）の取得
                 let power_now = readFile(`${batPath}/power_now`);
                 let voltage_now = readFile(`${batPath}/voltage_now`);
                 let current_now = readFile(`${batPath}/current_now`);
 
                 let powerMicroCoords = 0;
                 if (power_now) {
+                    // power_now が存在する場合
                     powerMicroCoords = parseInt(power_now);
                 } else if (voltage_now && current_now) {
+                    // 電圧と電流から電力を計算
                     powerMicroCoords = (parseInt(voltage_now) * parseInt(current_now)) / 1000000;
                 }
 
+                // マイクロワットをワットに変換（小数点1桁）
                 let watts = (Math.abs(powerMicroCoords) / 1000000).toFixed(1);
 
                 let isCharging = (statusRaw === "Charging");
@@ -156,7 +146,7 @@ const WattMonitorIndicator = GObject.registerClass(
                     detailsText += `${_('Current')}: ${a} A\n`;
                 }
 
-                // Energy
+                // エネルギー（Wh）情報の取得
                 let energy_now = readFile(`${batPath}/energy_now`);
                 let energy_full = readFile(`${batPath}/energy_full`);
                 if (energy_now && energy_full) {
